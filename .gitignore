@@ -1,0 +1,43 @@
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts
+/dist/
+/build/
+/.cache/
+*.log
+
+# Environment & local overrides
+.env
+.env.local
+*.local.php
+
+# Composer caches
+/.composer/
+
+# PHPUnit & coverage
+/phpunit.xml
+/phpunit.xml.dist
+/.phpunit.result.cache
+/coverage/
+
+# Misc
+*.swp
+*~
+*.bak

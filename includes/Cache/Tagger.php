@@ -18,8 +18,14 @@ use function wp_get_post_terms;
 use WP_Post;
 use WP_Term;
 
+/**
+ * Generates cache tags representing the current query or a specific post.
+ */
 class Tagger
 {
+    /**
+     * Builds a tag list for the active query to support fine-grained invalidation.
+     */
     public static function current_tags(): array
     {
         $tags = array( 'global' );
@@ -68,6 +74,9 @@ class Tagger
         return apply_filters( 'my_pro_cache_tags', array_unique( $tags ) );
     }
 
+    /**
+     * Returns canonical tags for a post including type, terms, and author.
+     */
     public static function tags_for_post( WP_Post $post ): array
     {
         $tags = array(

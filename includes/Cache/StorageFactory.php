@@ -5,8 +5,14 @@ namespace MyProCache\Cache;
 use MyProCache\Options\Manager;
 use MyProCache\Debug\Logger;
 
+/**
+ * Chooses an appropriate cache storage implementation based on plugin settings.
+ */
 class StorageFactory
 {
+    /**
+     * Returns a storage adapter instance, falling back to disk when others are unavailable.
+     */
     public static function create( Manager $options, Logger $logger ): StorageInterface
     {
         $backend = $options->get( 'cache_backend', 'disk' );

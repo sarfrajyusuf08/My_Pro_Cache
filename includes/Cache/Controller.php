@@ -43,6 +43,10 @@ use function wp_is_json_request;
 use const REST_REQUEST;
 use const DONOTCACHEPAGE;
 
+/**
+ * Coordinates cache lookup, storage, and request filtering for front-end traffic.
+ * Hooks into WordPress early enough to serve hits before templates execute.
+ */
 class Controller
 {
     private Manager $options;
@@ -57,6 +61,9 @@ class Controller
 
     private string $currentUri = '';
 
+    /**
+     * Instantiates the controller with dependencies and prepares the storage backend.
+     */
     public function __construct( Manager $options, Logger $logger )
     {
         $this->options = $options;
@@ -65,6 +72,9 @@ class Controller
         API::init( $options, $this->storage, $logger );
     }
 
+    /**
+     * Registers WordPress hooks that attempt to serve cached pages and capture output.
+     */
     public function register(): void
     {
         add_action( 'init', array( $this, 'maybe_serve_cache' ), 1 );
@@ -72,6 +82,9 @@ class Controller
         add_action( 'send_headers', array( $this, 'send_headers' ) );
     }
 
+    /**
+     * Attempts to short-circuit the request with a cached entry if available and fresh.
+     */
     public function maybe_serve_cache(): void
     {
         if ( ! $this->is_cacheable_request( true ) ) {
@@ -113,6 +126,9 @@ class Controller
         exit;
     }
 
+    /**
+     * Starts output buffering so a cacheable response can be stored after rendering.
+     */
     public function start_buffer(): void
     {
         if ( ! $this->is_cacheable_request() ) {
@@ -128,6 +144,9 @@ class Controller
         ob_start( array( $this, 'capture_buffer' ) );
     }
 
+    /**
+     * Sends diagnostic headers describing the cache state for the current request.
+     */
     public function send_headers(): void
     {
         if ( headers_sent() ) {
@@ -140,6 +159,9 @@ class Controller
         }
     }
 
+    /**
+     * Evaluates the buffered response, saves it to cache when eligible, and returns it.
+     */
     public function capture_buffer( string $buffer ): string
     {
         if ( 'MISS' !== $this->state || strlen( $buffer ) < 255 ) {
@@ -165,6 +187,9 @@ class Controller
         return $buffer;
     }
 
+    /**
+     * Checks the current request against cache eligibility rules and exclusions.
+     */
     private function is_cacheable_request( bool $serving = false ): bool
     {
         if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || wp_is_json_request() || is_preview() || is_trackback() || is_embed() || is_customize_preview() ) {
@@ -200,6 +225,9 @@ class Controller
         return (bool) apply_filters( 'my_pro_cache_should_cache_request', true, $serving );
     }
 
+    /**
+     * Tests request metadata against user-defined exclusion patterns and cookies.
+     */
     private function matches_exclusions(): bool
     {
         $uri = $_SERVER['REQUEST_URI'] ?? '';
@@ -235,6 +263,9 @@ class Controller
         return false;
     }
 
+    /**
+     * Matches wildcard or regex-style patterns against the supplied subject string.
+     */
     private function pattern_matches( string $pattern, string $subject ): bool
     {
         $pattern = trim( $pattern );
@@ -250,6 +281,9 @@ class Controller
         return (bool) @preg_match( $regex, $subject );
     }
 
+    /**
+     * Selects an appropriate TTL based on the current query context.
+     */
     private function determine_ttl(): int
     {
         if ( is_front_page() ) {
@@ -263,6 +297,9 @@ class Controller
         return (int) $this->options->get( 'ttl_default', 3600 );
     }
 
+    /**
+     * Determines whether a cached entry is still within its time-to-live window.
+     */
     private function is_entry_fresh( array $entry ): bool
     {
         $ttl     = isset( $entry['ttl'] ) ? (int) $entry['ttl'] : (int) $this->options->get( 'ttl_default', 3600 );
@@ -274,6 +311,9 @@ class Controller
         return ( time() - $created ) < $ttl;
     }
 
+    /**
+     * Builds the absolute URL for the active request for tagging and logging.
+     */
     private function current_url(): string
     {
         $scheme = is_ssl() ? 'https://' : 'http://';

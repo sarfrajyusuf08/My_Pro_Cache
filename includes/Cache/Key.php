@@ -22,8 +22,14 @@ use const PHP_URL_HOST;
 use const PHP_URL_PATH;
 use const PHP_URL_QUERY;
 
+/**
+ * Creates deterministic cache keys using request context and configured vary rules.
+ */
 class Key
 {
+    /**
+     * Builds a cache key from the active global request environment.
+     */
     public static function build_from_globals( Manager $options ): string
     {
         $scheme = is_ssl() ? 'https' : 'http';
@@ -33,6 +39,9 @@ class Key
         return self::build_from_uri( $scheme, $host, $uri, $options );
     }
 
+    /**
+     * Builds a cache key for an arbitrary URL using plugin options.
+     */
     public static function build_from_url( string $url, Manager $options ): string
     {
         $scheme = parse_url( $url, PHP_URL_SCHEME ) ?? 'http';
@@ -43,6 +52,9 @@ class Key
         return self::build_from_components( $scheme, $host, $path, $query, $options );
     }
 
+    /**
+     * Normalises a URI relative to host/scheme before delegating to component builder.
+     */
     private static function build_from_uri( string $scheme, string $host, string $uri, Manager $options ): string
     {
         $parts = parse_url( $scheme . '://' . $host . $uri );
@@ -52,6 +64,9 @@ class Key
         return self::build_from_components( $scheme, $host, $path, $query, $options );
     }
 
+    /**
+     * Assembles the final cache key from scheme, host, path, filtered query, and vary data.
+     */
     private static function build_from_components( string $scheme, string $host, string $path, string $query, Manager $options ): string
     {
         $args = array();
@@ -72,6 +87,9 @@ class Key
         return implode( '|', $key_parts );
     }
 
+    /**
+     * Removes ignored query parameters such as tracking or configured exclusions.
+     */
     private static function filter_query_args( array $args, Manager $options ): array
     {
         $exclude  = array_map( 'strtolower', (array) $options->get( 'exclude_query_args', array() ) );
@@ -91,6 +109,9 @@ class Key
         return $filtered;
     }
 
+    /**
+     * Collects user/device/language/cookie markers that influence cache variation.
+     */
     private static function vary_parts( Manager $options ): array
     {
         $parts = array();

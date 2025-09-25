@@ -14,6 +14,10 @@ use function wp_cache_get;
 use function wp_cache_set;
 use function wp_using_ext_object_cache;
 
+/**
+ * Storage backend that utilises WordPress object cache APIs for caching responses.
+ * Provides shared behaviour for Redis and Memcached adapters.
+ */
 class ObjectCacheStorage implements StorageInterface
 {
     protected Manager $options;
@@ -28,17 +32,26 @@ class ObjectCacheStorage implements StorageInterface
 
     protected string $indexKey = 'my_pro_cache_keys';
 
+    /**
+     * Stores the option manager and logger for later cache operations.
+     */
     public function __construct( Manager $options, Logger $logger )
     {
         $this->options = $options;
         $this->logger  = $logger;
     }
 
+    /**
+     * Checks whether WordPress is currently using an external object cache.
+     */
     public static function is_available(): bool
     {
         return function_exists( 'wp_cache_set' ) && wp_using_ext_object_cache();
     }
 
+    /**
+     * Retrieves a cached record by key hash from the object cache group.
+     */
     public function get( string $key ): ?array
     {
         $hash = sha1( $key );
@@ -47,6 +60,9 @@ class ObjectCacheStorage implements StorageInterface
         return is_array( $data ) ? $data : null;
     }
 
+    /**
+     * Writes the response payload into the object cache and updates indices.
+     */
     public function set( string $key, array $payload, array $tags = array(), ?int $ttl = null ): bool
     {
         $hash = sha1( $key );
@@ -71,11 +87,17 @@ class ObjectCacheStorage implements StorageInterface
         return true;
     }
 
+    /**
+     * Deletes a cached entry using its logical key.
+     */
     public function delete( string $key ): void
     {
         $this->delete_by_hash( sha1( $key ) );
     }
 
+    /**
+     * Clears every stored record and resets supporting indices.
+     */
     public function clear(): void
     {
         $keys = wp_cache_get( $this->indexKey, $this->group );
@@ -90,6 +112,9 @@ class ObjectCacheStorage implements StorageInterface
         wp_cache_delete( $this->indexKey, $this->uriGroup );
     }
 
+    /**
+     * Removes cached entries associated with the supplied tags.
+     */
     public function purge_tags( array $tags ): void
     {
         foreach ( $tags as $tag ) {
@@ -105,6 +130,9 @@ class ObjectCacheStorage implements StorageInterface
         }
     }
 
+    /**
+     * Removes cached entries cached for a specific URI.
+     */
     public function purge_uri( string $uri ): void
     {
         $uri_hash = sha1( $uri );
@@ -118,6 +146,9 @@ class ObjectCacheStorage implements StorageInterface
         wp_cache_delete( $uri_hash, $this->uriGroup );
     }
 
+    /**
+     * Maintains an index of all cache hashes for full clear operations.
+     */
     protected function index_key( string $hash ): void
     {
         $keys = wp_cache_get( $this->indexKey, $this->group );
@@ -130,6 +161,9 @@ class ObjectCacheStorage implements StorageInterface
         wp_cache_set( $this->indexKey, $keys, $this->group );
     }
 
+    /**
+     * Associates a cache hash with each tag for targeted purging.
+     */
     protected function index_tags( string $hash, array $tags ): void
     {
         foreach ( $tags as $tag ) {
@@ -145,6 +179,9 @@ class ObjectCacheStorage implements StorageInterface
         }
     }
 
+    /**
+     * Associates a cache hash with a URI for direct invalidation.
+     */
     protected function index_uri( string $hash, string $uri ): void
     {
         $uri_hash = sha1( $uri );
@@ -158,6 +195,9 @@ class ObjectCacheStorage implements StorageInterface
         wp_cache_set( $uri_hash, $keys, $this->uriGroup );
     }
 
+    /**
+     * Removes a cached record and cleans up its tag/URI indices.
+     */
     protected function delete_by_hash( string $hash ): void
     {
         $record = wp_cache_get( $hash, $this->group );

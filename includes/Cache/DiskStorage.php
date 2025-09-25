@@ -24,6 +24,10 @@ use const DIRECTORY_SEPARATOR;
 use const JSON_PRETTY_PRINT;
 use const LOCK_EX;
 
+/**
+ * Disk-backed storage engine responsible for persisting cached pages and indexes.
+ * Maintains directories for payloads, metadata, tag relations, and URI lookups.
+ */
 class DiskStorage implements StorageInterface
 {
     private Manager $options;
@@ -38,6 +42,9 @@ class DiskStorage implements StorageInterface
 
     private string $uriDir;
 
+    /**
+     * Initialises directory paths and ensures the disk cache structure exists.
+     */
     public function __construct( Manager $options )
     {
         $this->options = $options;
@@ -54,6 +61,9 @@ class DiskStorage implements StorageInterface
         }
     }
 
+    /**
+     * Loads a cached entry from disk and returns metadata combined with content.
+     */
     public function get( string $key ): ?array
     {
         $hash = $this->hash_key( $key );
@@ -74,6 +84,9 @@ class DiskStorage implements StorageInterface
         return $meta;
     }
 
+    /**
+     * Persists the cached payload to disk and refreshes tag and URI indices.
+     */
     public function set( string $key, array $payload, array $tags = array(), ?int $ttl = null ): bool
     {
         $hash         = $this->hash_key( $key );
@@ -101,11 +114,17 @@ class DiskStorage implements StorageInterface
         return true;
     }
 
+    /**
+     * Removes a cached entry identified by the logical cache key.
+     */
     public function delete( string $key ): void
     {
         $this->delete_by_hash( $this->hash_key( $key ) );
     }
 
+    /**
+     * Empties the entire disk cache and recreates the required directory structure.
+     */
     public function clear(): void
     {
         $this->delete_directory( $this->pagesDir );
@@ -120,6 +139,9 @@ class DiskStorage implements StorageInterface
         }
     }
 
+    /**
+     * Removes all cache files associated with the supplied tag list.
+     */
     public function purge_tags( array $tags ): void
     {
         foreach ( $tags as $tag ) {
@@ -139,6 +161,9 @@ class DiskStorage implements StorageInterface
         }
     }
 
+    /**
+     * Deletes cache entries mapped to a specific URI and clears its index file.
+     */
     public function purge_uri( string $uri ): void
     {
         $uri_file = $this->uriDir . DIRECTORY_SEPARATOR . sha1( $uri ) . '.json';
@@ -156,11 +181,17 @@ class DiskStorage implements StorageInterface
         unlink( $uri_file );
     }
 
+    /**
+     * Produces a stable hash used as the on-disk identifier for the cache key.
+     */
     private function hash_key( string $key ): string
     {
         return sha1( $key );
     }
 
+    /**
+     * Stores the cache hash under each tag so future purges can locate it.
+     */
     private function index_tags( string $hash, array $tags ): void
     {
         foreach ( array_unique( $tags ) as $tag ) {
@@ -179,6 +210,9 @@ class DiskStorage implements StorageInterface
         }
     }
 
+    /**
+     * Records the cache hash under the originating URI for reverse lookups.
+     */
     private function index_uri( string $hash, string $uri ): void
     {
         $uri_file = $this->uriDir . DIRECTORY_SEPARATOR . sha1( $uri ) . '.json';
@@ -195,6 +229,9 @@ class DiskStorage implements StorageInterface
         file_put_contents( $uri_file, json_encode( $hashes ), LOCK_EX );
     }
 
+    /**
+     * Removes the cache hash from tag indices, deleting empty index files.
+     */
     private function remove_from_tags( string $hash, array $tags ): void
     {
         foreach ( $tags as $tag ) {
@@ -216,6 +253,9 @@ class DiskStorage implements StorageInterface
         }
     }
 
+    /**
+     * Removes the cache hash from the URI index, clearing the file when empty.
+     */
     private function remove_from_uri( string $hash, string $uri ): void
     {
         $uri_file = $this->uriDir . DIRECTORY_SEPARATOR . sha1( $uri ) . '.json';
@@ -235,6 +275,9 @@ class DiskStorage implements StorageInterface
         }
     }
 
+    /**
+     * Deletes metadata, content, and associated indices for a cached hash.
+     */
     private function delete_by_hash( string $hash ): void
     {
         $meta_file    = $this->metaDir . DIRECTORY_SEPARATOR . $hash . '.json';
@@ -256,6 +299,9 @@ class DiskStorage implements StorageInterface
         }
     }
 
+    /**
+     * Recursively purges a cache subdirectory from disk.
+     */
     private function delete_directory( string $dir ): void
     {
         if ( ! is_dir( $dir ) ) {
